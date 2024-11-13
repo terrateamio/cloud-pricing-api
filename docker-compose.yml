@@ -1,0 +1,84 @@
+version: '3.4'
+
+services:
+  api:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    image: infracost/cloud-pricing-api:latest # Latest stable release
+    ports: 
+        - 4000:4000
+    environment:
+      - INFRACOST_API_KEY=${INFRACOST_API_KEY}
+      - SELF_HOSTED_INFRACOST_API_KEY=${SELF_HOSTED_INFRACOST_API_KEY}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=cloud_pricing
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    depends_on: [postgres]
+    networks:
+      - cloud_pricing_api
+
+  init_job:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: infracost/cloud-pricing-api:latest # Latest stable release
+    environment:
+      - INFRACOST_API_KEY=${INFRACOST_API_KEY}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=cloud_pricing
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+    depends_on: [postgres]
+    networks:
+      - cloud_pricing_api
+    command: ["npm", "run", "job:init"]
+
+  # Cron: Add a cron job to run every week to update the database data. The cron entry should look something like:
+  # 0 4 * * SUN docker-compose run --rm update_job npm run job:update >> /var/log/cron.log 2>&1
+  update_job:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: infracost/cloud-pricing-api:latest # Latest stable release
+    environment:
+      - INFRACOST_API_KEY=${INFRACOST_API_KEY}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=cloud_pricing
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+    depends_on: [postgres]
+    networks:
+      - cloud_pricing_api
+    command: ["npm", "run", "job:update"]
+
+  postgres:
+    image: postgres:13
+    user: postgres
+    environment:
+      - POSTGRES_DB=cloud_pricing
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - postgres-data:/var/lib/postgresql/data/
+    networks:
+      - cloud_pricing_api
+ 
+volumes:
+  postgres-data:
+
+networks:
+  cloud_pricing_api:
