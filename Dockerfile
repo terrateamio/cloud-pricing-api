@@ -70,8 +70,8 @@ RUN su-exec postgres pg_ctl start -D /var/lib/postgresql/data && \
     rm -f /usr/src/app/data/products/products.csv.gz && \
     su-exec postgres pg_ctl stop -D /var/lib/postgresql/data
 
-# Final stage - copy from either download or scrape (default: scrape)
-FROM scrape AS final
+# Final stage for download path
+FROM download AS final-download
 
 # Copy entrypoint
 COPY docker-entrypoint.sh /docker-entrypoint.sh
@@ -80,3 +80,17 @@ RUN chmod +x /docker-entrypoint.sh
 ENV NODE_ENV=production
 EXPOSE 4000
 ENTRYPOINT ["/docker-entrypoint.sh"]
+
+# Final stage for scrape path
+FROM scrape AS final-scrape
+
+# Copy entrypoint
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENV NODE_ENV=production
+EXPOSE 4000
+ENTRYPOINT ["/docker-entrypoint.sh"]
+
+# Default final stage (uses scrape path)
+FROM final-scrape AS final
