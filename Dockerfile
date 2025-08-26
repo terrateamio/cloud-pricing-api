@@ -1,6 +1,6 @@
 FROM node:16.13-alpine3.12 AS base
 
-# Build arguments
+# Build arguments (these will be available during build but not in final image)
 ARG INFRACOST_API_KEY
 ARG AWS_ACCESS_KEY_ID
 ARG AWS_SECRET_ACCESS_KEY
@@ -9,14 +9,7 @@ ARG AZURE_CLIENT_SECRET
 ARG AZURE_TENANT_ID
 ARG GCP_API_KEY
 
-# Environment variables
-ENV INFRACOST_API_KEY=${INFRACOST_API_KEY}
-ENV AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-ENV AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-ENV AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
-ENV AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}
-ENV AZURE_TENANT_ID=${AZURE_TENANT_ID}
-ENV GCP_API_KEY=${GCP_API_KEY}
+# Only set non-sensitive environment variables that are needed at runtime
 ENV POSTGRES_HOST=127.0.0.1
 ENV POSTGRES_DB=cloud_pricing
 ENV POSTGRES_USER=postgres
@@ -46,6 +39,9 @@ RUN mkdir /run/postgresql && \
 
 # Stage for downloading from Infracost API
 FROM base AS download
+# Set sensitive environment variables only for this build stage
+ARG INFRACOST_API_KEY
+ENV INFRACOST_API_KEY=${INFRACOST_API_KEY}
 RUN su-exec postgres pg_ctl start -D /var/lib/postgresql/data && \
     su-exec postgres createdb cloud_pricing && \
     su-exec infracost npm run job:init && \
@@ -54,6 +50,19 @@ RUN su-exec postgres pg_ctl start -D /var/lib/postgresql/data && \
 
 # Stage for scraping from cloud providers
 FROM base AS scrape
+# Set cloud provider credentials only for this build stage
+ARG AWS_ACCESS_KEY_ID
+ARG AWS_SECRET_ACCESS_KEY
+ARG AZURE_CLIENT_ID
+ARG AZURE_CLIENT_SECRET
+ARG AZURE_TENANT_ID
+ARG GCP_API_KEY
+ENV AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+ENV AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+ENV AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
+ENV AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}
+ENV AZURE_TENANT_ID=${AZURE_TENANT_ID}
+ENV GCP_API_KEY=${GCP_API_KEY}
 RUN su-exec postgres pg_ctl start -D /var/lib/postgresql/data && \
     su-exec postgres createdb cloud_pricing && \
     su-exec infracost npm run db:setup && \
@@ -70,8 +79,11 @@ RUN su-exec postgres pg_ctl start -D /var/lib/postgresql/data && \
     rm -f /usr/src/app/data/products/products.csv.gz && \
     su-exec postgres pg_ctl stop -D /var/lib/postgresql/data
 
-# Final stage for download path
+# Final stage for download path - inherits from download but clears secrets
 FROM download AS final-download
+
+# Clear all sensitive environment variables
+ENV INFRACOST_API_KEY=
 
 # Copy entrypoint
 COPY docker-entrypoint.sh /docker-entrypoint.sh
@@ -81,8 +93,16 @@ ENV NODE_ENV=production
 EXPOSE 4000
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
-# Final stage for scrape path
+# Final stage for scrape path - inherits from scrape but clears secrets
 FROM scrape AS final-scrape
+
+# Clear all sensitive environment variables
+ENV AWS_ACCESS_KEY_ID=
+ENV AWS_SECRET_ACCESS_KEY=
+ENV AZURE_CLIENT_ID=
+ENV AZURE_CLIENT_SECRET=
+ENV AZURE_TENANT_ID=
+ENV GCP_API_KEY=
 
 # Copy entrypoint
 COPY docker-entrypoint.sh /docker-entrypoint.sh

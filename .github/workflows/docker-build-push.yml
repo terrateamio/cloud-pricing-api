@@ -67,12 +67,6 @@ jobs:
           target: final-download
           build-args: |
             INFRACOST_API_KEY=${{ secrets.INFRACOST_API_KEY }}
-            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}
-            AZURE_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }}
-            AZURE_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}
-            GCP_API_KEY=${{ secrets.GCP_API_KEY }}
           provenance: false
 
   create-manifest:
