@@ -37,6 +37,13 @@ RUN mkdir /run/postgresql && \
     chown postgres:postgres /run/postgresql && \
     su-exec postgres initdb -D /var/lib/postgresql/data
 
+# Configure PostgreSQL for low memory usage
+RUN echo "shared_buffers = 128MB" >> /var/lib/postgresql/data/postgresql.conf && \
+    echo "work_mem = 4MB" >> /var/lib/postgresql/data/postgresql.conf && \
+    echo "maintenance_work_mem = 64MB" >> /var/lib/postgresql/data/postgresql.conf && \
+    echo "effective_cache_size = 256MB" >> /var/lib/postgresql/data/postgresql.conf && \
+    echo "max_connections = 20" >> /var/lib/postgresql/data/postgresql.conf
+
 # Stage for downloading from Infracost API
 FROM base AS download
 # Set sensitive environment variables only for this build stage
@@ -89,6 +96,8 @@ ENV INFRACOST_API_KEY=
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
+# Limit Node.js heap to 512MB
+ENV NODE_OPTIONS="--max-old-space-size=512"
 ENV NODE_ENV=production
 EXPOSE 4000
 ENTRYPOINT ["/docker-entrypoint.sh"]
@@ -108,6 +117,8 @@ ENV GCP_API_KEY=
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
+# Limit Node.js heap to 512MB
+ENV NODE_OPTIONS="--max-old-space-size=512"
 ENV NODE_ENV=production
 EXPOSE 4000
 ENTRYPOINT ["/docker-entrypoint.sh"]
