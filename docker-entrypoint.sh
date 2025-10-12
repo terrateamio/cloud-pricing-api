@@ -12,14 +12,14 @@ MODE=${MODE:-both}
 case "$MODE" in
   postgresql)
     echo "MODE=postgresql: Starting PostgreSQL only (sidecar mode)..."
-
-    # Configure PostgreSQL to only listen on Unix sockets for sidecar mode
-    # This avoids TCP port conflicts in shared network namespace
     echo "Configuring PostgreSQL for sidecar mode (Unix sockets only)..."
-    echo "listen_addresses = ''" >> /var/lib/postgresql/data/postgresql.conf
-    echo "unix_socket_directories = '/tmp'" >> /var/lib/postgresql/data/postgresql.conf
 
-    exec su-exec postgres postgres -D /var/lib/postgresql/data
+    # Use command-line arguments to override config and disable TCP
+    # -c listen_addresses='' disables TCP/IP connections entirely
+    # -c unix_socket_directories='/tmp' sets Unix socket location
+    exec su-exec postgres postgres -D /var/lib/postgresql/data \
+      -c listen_addresses='' \
+      -c unix_socket_directories='/tmp'
     ;;
 
   api)
