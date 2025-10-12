@@ -12,20 +12,27 @@ MODE=${MODE:-both}
 case "$MODE" in
   postgresql)
     echo "MODE=postgresql: Starting PostgreSQL only (sidecar mode)..."
+
+    # Configure PostgreSQL to only listen on Unix sockets for sidecar mode
+    # This avoids TCP port conflicts in shared network namespace
+    echo "Configuring PostgreSQL for sidecar mode (Unix sockets only)..."
+    echo "listen_addresses = ''" >> /var/lib/postgresql/data/postgresql.conf
+    echo "unix_socket_directories = '/tmp'" >> /var/lib/postgresql/data/postgresql.conf
+
     exec su-exec postgres postgres -D /var/lib/postgresql/data
     ;;
 
   api)
-    echo "MODE=api: Starting API only (connecting to PostgreSQL at ${POSTGRES_HOST:-127.0.0.1})..."
+    echo "MODE=api: Starting API only (connecting to PostgreSQL via Unix socket)..."
 
-    # Wait for PostgreSQL to be ready
+    # Wait for PostgreSQL Unix socket to be ready
     echo "Waiting for PostgreSQL to be ready..."
     timeout=60
     counter=0
-    until su-exec postgres pg_isready -h ${POSTGRES_HOST:-127.0.0.1} -p ${POSTGRES_PORT:-5432} -U ${POSTGRES_USER:-postgres} > /dev/null 2>&1; do
+    until su-exec postgres pg_isready -h /tmp -U ${POSTGRES_USER:-postgres} > /dev/null 2>&1; do
       counter=$((counter + 1))
       if [ $counter -gt $timeout ]; then
-        echo "ERROR: PostgreSQL at ${POSTGRES_HOST:-127.0.0.1}:${POSTGRES_PORT:-5432} failed to become ready within $timeout seconds"
+        echo "ERROR: PostgreSQL failed to become ready within $timeout seconds"
         exit 1
       fi
       echo "PostgreSQL is unavailable - sleeping (attempt $counter/$timeout)"
