@@ -1,0 +1,24 @@
+FROM node:16.13-alpine3.12
+
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+# Copy application files
+WORKDIR /usr/src/app
+COPY package*.json ./
+RUN npm install --production && npm install
+COPY . .
+RUN npm run build
+
+# Create non-root user
+RUN addgroup -g 1001 -S infracost && \
+    adduser -u 1001 -S infracost -G infracost && \
+    chown -R infracost:infracost /usr/src/app
+
+# Switch to non-root user
+USER infracost
+
+ENV NODE_ENV=production
+EXPOSE 4000
+
+CMD ["npm", "run", "start"]
