@@ -200,12 +200,12 @@ jobs:
           # Base image name
           BASE_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
 
-          # Create manifest for SHA tag
-          docker manifest create ${BASE_IMAGE}:api-only-sha-${SHA_TAG} \
-            ${BASE_IMAGE}:api-only-sha-${SHA_TAG}-amd64 \
-            ${BASE_IMAGE}:api-only-sha-${SHA_TAG}-arm64
+          # Create manifest for SHA tag (matches metadata action output: api-only-{sha})
+          docker manifest create ${BASE_IMAGE}:api-only-${SHA_TAG} \
+            ${BASE_IMAGE}:api-only-${SHA_TAG}-amd64 \
+            ${BASE_IMAGE}:api-only-${SHA_TAG}-arm64
 
-          docker manifest push ${BASE_IMAGE}:api-only-sha-${SHA_TAG}
+          docker manifest push ${BASE_IMAGE}:api-only-${SHA_TAG}
 
           # Create manifest for branch name (main)
           if [ "${{ github.ref_name }}" = "main" ]; then
