@@ -32,6 +32,15 @@ async function pg(): Promise<Pool> {
       max: Number(process.env.POSTGRES_MAX_CLIENTS) || 10,
     };
 
+    // Handle SSL configuration for Cloud SQL
+    // When PGSSLMODE=require, enable SSL but don't verify certificates
+    // (safe for private VPC connections to Cloud SQL)
+    if (process.env.PGSSLMODE === 'require') {
+      poolConfig.ssl = {
+        rejectUnauthorized: false,
+      };
+    }
+
     if (process.env.POSTGRES_URI) {
       poolConfig = {
         connectionString:
